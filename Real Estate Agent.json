@@ -1,0 +1,608 @@
+{
+  "name": "Real Estate Agent",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "25dfcd35-de0d-4cbb-9e48-f2023dbe9579",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -576,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "mergeByPosition",
+        "options": {}
+      },
+      "id": "52b12e54-f1d1-463a-b76c-3413e9c3c5d6",
+      "name": "Merge All Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        -128,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst processedItems = [];\n\nfor (const item of items) {\n  const data = item.json;\n  \n  const property = {\n    id: data.id || data.exposeid || `PROP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,\n    source: data.source || 'Unknown',\n    title: data.title || data.name || 'Property Listing',\n    address: data.address || data.location || 'Address not provided',\n    city: data.city || data.place || 'Unknown',\n    price: parseFloat(data.price || data.purchasePrice || 0),\n    rent: parseFloat(data.rent || data.rentPerMonth || 0),\n    size: parseFloat(data.size || data.livingSpace || 0),\n    rooms: parseFloat(data.rooms || data.numberOfRooms || 0),\n    yearBuilt: parseInt(data.yearBuilt || data.constructionYear || 0),\n    propertyType: data.propertyType || data.type || 'Apartment',\n    condition: data.condition || 'Not specified',\n    agentName: data.agentName || data.contact?.name || 'Agent',\n    agentEmail: data.agentEmail || data.contact?.email || 'agent@example.com',\n    agentPhone: data.agentPhone || data.contact?.phone || '',\n    listingUrl: data.url || data.link || '',\n    description: data.description || '',\n    fetchedAt: new Date().toISOString()\n  };\n  \n  const roi = property.rent > 0 && property.price > 0 ? ((property.rent * 12) / property.price) * 100 : 0;\n  const pricePerSqm = property.size > 0 ? property.price / property.size : 0;\n  \n  let score = 50;\n  \n  if (roi >= 8) score += 30;\n  else if (roi >= 6) score += 20;\n  else if (roi >= 4) score += 10;\n  \n  if (property.price < 200000) score += 20;\n  else if (property.price < 350000) score += 15;\n  else if (property.price < 500000) score += 10;\n  \n  if (property.condition.toLowerCase().includes('renovated') || property.condition.toLowerCase().includes('new')) {\n    score += 15;\n  } else if (property.condition.toLowerCase().includes('good')) {\n    score += 10;\n  }\n  \n  const age = new Date().getFullYear() - property.yearBuilt;\n  if (age < 10) score += 15;\n  else if (age < 30) score += 10;\n  else if (age < 50) score += 5;\n  \n  if (property.size >= 100) score += 10;\n  else if (property.size >= 70) score += 7;\n  else if (property.size >= 50) score += 5;\n  \n  const premiumCities = ['Berlin', 'Munich', 'Hamburg', 'Frankfurt', 'Stuttgart'];\n  if (premiumCities.some(city => property.city.includes(city))) {\n    score += 10;\n  }\n  \n  property.roi = parseFloat(roi.toFixed(2));\n  property.pricePerSqm = parseFloat(pricePerSqm.toFixed(2));\n  property.score = Math.min(100, Math.max(0, score));\n  property.scoreCategory = score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Poor';\n  \n  processedItems.push({ json: property });\n}\n\nreturn processedItems;"
+      },
+      "id": "b7c4b9dc-ba65-4e95-8262-68d875383663",
+      "name": "Normalize & Score Properties",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        96,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1IyMgsZkKiAnUaSU9w50CSWan3J55htw-Msda9MNqCrw",
+          "mode": "list",
+          "cachedResultName": "Property Listings",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IyMgsZkKiAnUaSU9w50CSWan3J55htw-Msda9MNqCrw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IyMgsZkKiAnUaSU9w50CSWan3J55htw-Msda9MNqCrw/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $json.id }}",
+            "source": "={{ $json.source }}",
+            "title": "={{ $json.title }}",
+            "address": "={{ $json.address }}",
+            "city": "={{ $json.city }}",
+            "price": "={{ $json.price }}",
+            "rent": "={{ $json.rent }}",
+            "size": "={{ $json.size }}",
+            "rooms": "={{ $json.rooms }}",
+            "yearBuilt": "={{ $json.yearBuilt }}",
+            "propertyType": "={{ $json.propertyType }}",
+            "condition": "={{ $json.condition }}",
+            "roi": "={{ $json.roi }}",
+            "pricePerSqm": "={{ $json.pricePerSqm }}",
+            "score": "={{ $json.score }}",
+            "scoreCategory": "={{ $json.scoreCategory }}",
+            "agentName": "={{ $json.agentName }}",
+            "agentEmail": "={{ $json.agentEmail }}",
+            "agentPhone": "={{ $json.agentPhone }}",
+            "listingUrl": "={{ $json.listingUrl }}",
+            "fetchedAt": "={{ $json.fetchedAt }}",
+            "emailSent": "No"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "source",
+              "displayName": "source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "address",
+              "displayName": "address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "city",
+              "displayName": "city",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "price",
+              "displayName": "price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "rent",
+              "displayName": "rent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "size",
+              "displayName": "size",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "rooms",
+              "displayName": "rooms",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "yearBuilt",
+              "displayName": "yearBuilt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "propertyType",
+              "displayName": "propertyType",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "condition",
+              "displayName": "condition",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "roi",
+              "displayName": "roi",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "pricePerSqm",
+              "displayName": "pricePerSqm",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "scoreCategory",
+              "displayName": "scoreCategory",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "agentName",
+              "displayName": "agentName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "agentEmail",
+              "displayName": "agentEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "agentPhone",
+              "displayName": "agentPhone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "listingUrl",
+              "displayName": "listingUrl",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "fetchedAt",
+              "displayName": "fetchedAt",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "emailSent",
+              "displayName": "emailSent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "737b73f9-9a01-4553-965e-dffdaeee7cd0",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [
+        320,
+        -320
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ne5lFAYcDs8mggLN",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "filter1",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 60,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "190537d1-e0e5-445d-8ff5-2004935fe21f",
+      "name": "Filter Qualified Properties",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        528,
+        -320
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "=aifirstlink@gmail.com",
+        "subject": "Investment Inquiry: {{ $json.title }}",
+        "message": "<html><body style='font-family: Arial, sans-serif;'><div style='max-width: 600px; margin: 0 auto;'><div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'><h1>Investment Opportunity</h1></div><div style='background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px;'><p>Dear {{ $json.agentName }},</p><p>I am a real estate investor interested in your listing:</p><div style='background: white; padding: 20px; border-radius: 8px; margin: 20px 0;'><h2 style='color: #667eea;'>{{ $json.title }}</h2><p>{{ $json.address }}, {{ $json.city }}</p><div style='display: inline-block; padding: 8px 16px; background: #4CAF50; color: white; border-radius: 20px; font-weight: bold; margin: 10px 0;'>Score: {{ $json.score }}/100</div><table style='width: 100%; margin-top: 15px;'><tr><td style='padding: 10px 0; border-bottom: 1px solid #eee;'><strong>Price:</strong></td><td style='text-align: right; padding: 10px 0; border-bottom: 1px solid #eee;'>€{{ $json.price }}</td></tr><tr><td style='padding: 10px 0; border-bottom: 1px solid #eee;'><strong>Rent:</strong></td><td style='text-align: right; padding: 10px 0; border-bottom: 1px solid #eee;'>€{{ $json.rent }}/month</td></tr><tr><td style='padding: 10px 0; border-bottom: 1px solid #eee;'><strong>ROI:</strong></td><td style='text-align: right; padding: 10px 0; border-bottom: 1px solid #eee;'>{{ $json.roi }}%</td></tr><tr><td style='padding: 10px 0; border-bottom: 1px solid #eee;'><strong>Size:</strong></td><td style='text-align: right; padding: 10px 0; border-bottom: 1px solid #eee;'>{{ $json.size }}m²</td></tr><tr><td style='padding: 10px 0;'><strong>Rooms:</strong></td><td style='text-align: right; padding: 10px 0;'>{{ $json.rooms }}</td></tr></table></div><p>I would like to schedule a viewing and discuss this opportunity further.</p><p>Best regards,<br><strong>Your Name</strong><br>Real Estate Investor</p></div></div></body></html>",
+        "options": {}
+      },
+      "id": "e2ed0639-df05-496a-9d8c-a897b5e75c4f",
+      "name": "Send Email to Agent",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        752,
+        -320
+      ],
+      "webhookId": "9601bda3-81e1-4c65-9f44-f7fa99a460cb",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ftMJ19DZtqaMtMKR",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "1ff5d571-aac9-432b-a3e0-9b5ed67c565a",
+      "name": "Daily Report Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -576,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1IyMgsZkKiAnUaSU9w50CSWan3J55htw-Msda9MNqCrw",
+          "mode": "list",
+          "cachedResultName": "Property Listings",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IyMgsZkKiAnUaSU9w50CSWan3J55htw-Msda9MNqCrw/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1IyMgsZkKiAnUaSU9w50CSWan3J55htw-Msda9MNqCrw/edit#gid=0"
+        },
+        "options": {}
+      },
+      "id": "beca5453-486e-4aec-8bbd-9d7658b1f833",
+      "name": "Get All Listings",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [
+        -352,
+        -16
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "ne5lFAYcDs8mggLN",
+          "name": "Google Sheets account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst today = new Date();\ntoday.setHours(0, 0, 0, 0);\n\nconst todayListings = items.filter(item => {\n  const fetchedDate = new Date(item.json.fetchedAt);\n  fetchedDate.setHours(0, 0, 0, 0);\n  return fetchedDate.getTime() === today.getTime();\n});\n\nconst totalListings = items.length;\nconst newListingsToday = todayListings.length;\nconst emailsSent = items.filter(item => item.json.emailSent === 'Yes').length;\n\nconst sortedByScore = [...items].sort((a, b) => parseFloat(b.json.score || 0) - parseFloat(a.json.score || 0));\nconst top5Properties = sortedByScore.slice(0, 5);\n\nconst avgPrice = items.reduce((sum, item) => sum + parseFloat(item.json.price || 0), 0) / items.length;\nconst avgRoi = items.reduce((sum, item) => sum + parseFloat(item.json.roi || 0), 0) / items.length;\n\nreturn [{\n  json: {\n    reportDate: new Date().toISOString(),\n    totalListings,\n    newListingsToday,\n    emailsSent,\n    avgPrice: parseFloat(avgPrice.toFixed(2)),\n    avgRoi: parseFloat(avgRoi.toFixed(2)),\n    top5Properties: top5Properties.map(item => ({\n      title: item.json.title,\n      city: item.json.city,\n      price: item.json.price,\n      roi: item.json.roi,\n      score: item.json.score\n    }))\n  }\n}];"
+      },
+      "id": "2eff868c-8401-4360-8651-d338842caffd",
+      "name": "Generate Report Stats",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -128,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "aifirstlink@gmail.com",
+        "subject": "Daily Real Estate Report - {{ $now.format('YYYY-MM-DD') }}",
+        "message": "<html><body style='font-family: Arial, sans-serif;'><div style='max-width: 800px; margin: 20px auto; background: white;'><div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; text-align: center;'><h1>Daily Real Estate Report</h1><p>{{ $now.format('MMMM DD, YYYY') }}</p></div><div style='padding: 30px;'><h2>Summary Statistics</h2><table style='width: 100%; margin: 20px 0;'><tr><td style='padding: 15px; background: #f9f9f9;'><strong>Total Listings:</strong></td><td style='padding: 15px; background: #f9f9f9; text-align: right;'>{{ $json.totalListings }}</td></tr><tr><td style='padding: 15px;'><strong>New Today:</strong></td><td style='padding: 15px; text-align: right;'>{{ $json.newListingsToday }}</td></tr><tr><td style='padding: 15px; background: #f9f9f9;'><strong>Emails Sent:</strong></td><td style='padding: 15px; background: #f9f9f9; text-align: right;'>{{ $json.emailsSent }}</td></tr><tr><td style='padding: 15px;'><strong>Average Price:</strong></td><td style='padding: 15px; text-align: right;'>€{{ $json.avgPrice }}</td></tr><tr><td style='padding: 15px; background: #f9f9f9;'><strong>Average ROI:</strong></td><td style='padding: 15px; background: #f9f9f9; text-align: right;'>{{ $json.avgRoi }}%</td></tr></table><h2 style='margin-top: 40px;'>Top 5 Properties</h2>{{#each $json.top5Properties}}<div style='background: #f9f9f9; padding: 20px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #667eea;'><h3 style='margin: 0;'>{{ this.title }}</h3><p style='color: #666; margin: 5px 0;'>{{ this.city }}</p><table style='width: 100%; margin-top: 10px;'><tr><td><strong>Price:</strong> €{{ this.price }}</td><td><strong>ROI:</strong> {{ this.roi }}%</td><td><strong>Score:</strong> {{ this.score }}/100</td></tr></table></div>{{/each}}</div><div style='background: #f9f9f9; padding: 30px; text-align: center; color: #666;'><p>Report generated automatically by n8n workflow</p></div></div></body></html>",
+        "options": {}
+      },
+      "id": "d4031fa1-2c5c-4f27-a609-ae26342974ab",
+      "name": "Send Daily Report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        96,
+        -16
+      ],
+      "webhookId": "26bf29bf-ba77-4be2-8555-de80f8fe107d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ftMJ19DZtqaMtMKR",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock data for Immometrica API\nconst mockProperties = [\n  {\n    id: \"IMM-001\",\n    source: \"Immometrica\",\n    title: \"Modern 3-Room Apartment Berlin Mitte\",\n    address: \"Friedrichstraße 123\",\n    city: \"Berlin\",\n    price: 385000,\n    rent: 2100,\n    size: 85,\n    rooms: 3,\n    yearBuilt: 2018,\n    propertyType: \"Apartment\",\n    condition: \"Newly renovated\",\n    agentName: \"Michael Schmidt\",\n    agentEmail: \"m.schmidt@immobilien-berlin.de\",\n    agentPhone: \"+49 30 12345678\",\n    url: \"https://www.immometrica.com/property/IMM-001\",\n    description: \"Beautiful modern apartment with balcony\"\n  },\n  {\n    id: \"IMM-002\",\n    source: \"Immometrica\",\n    title: \"Multi-Family House Munich\",\n    address: \"Leopoldstraße 45\",\n    city: \"Munich\",\n    price: 1250000,\n    rent: 7500,\n    size: 320,\n    rooms: 8,\n    yearBuilt: 1995,\n    propertyType: \"Multi-Family House\",\n    condition: \"Good\",\n    agentName: \"Anna Weber\",\n    agentEmail: \"a.weber@muenchen-immobilien.de\",\n    agentPhone: \"+49 89 87654321\",\n    url: \"https://www.immometrica.com/property/IMM-002\",\n    description: \"Profitable investment property with 4 units\"\n  },\n  {\n    id: \"IMM-003\",\n    source: \"Immometrica\",\n    title: \"Cozy 2-Room Apartment Hamburg\",\n    address: \"Stresemannstraße 78\",\n    city: \"Hamburg\",\n    price: 195000,\n    rent: 950,\n    size: 58,\n    rooms: 2,\n    yearBuilt: 1985,\n    propertyType: \"Apartment\",\n    condition: \"Renovated\",\n    agentName: \"Klaus Müller\",\n    agentEmail: \"k.mueller@hamburg-wohnen.de\",\n    agentPhone: \"+49 40 55443322\",\n    url: \"https://www.immometrica.com/property/IMM-003\",\n    description: \"Perfect starter apartment in Altona\"\n  }\n];\n\nreturn mockProperties.map(prop => ({ json: prop }));"
+      },
+      "id": "2be88c80-004d-4387-9161-eabc9455ba12",
+      "name": "Immometrica Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        -416
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mock data for ImmoScout24 API\nconst mockProperties = [\n  {\n    exposeid: \"IS24-101\",\n    source: \"ImmoScout24\",\n    name: \"Loft Apartment Cologne\",\n    location: \"Ehrenfeld\",\n    place: \"Cologne\",\n    purchasePrice: 275000,\n    rentPerMonth: 1450,\n    livingSpace: 72,\n    numberOfRooms: 2.5,\n    constructionYear: 2015,\n    type: \"Loft\",\n    condition: \"Renovated\",\n    contact: {\n      name: \"Julia Hoffmann\",\n      email: \"j.hoffmann@koeln-immobilien.de\",\n      phone: \"+49 221 44556677\"\n    },\n    link: \"https://www.immobilienscout24.de/expose/IS24-101\",\n    description: \"Industrial-style loft with high ceilings\"\n  },\n  {\n    exposeid: \"IS24-102\",\n    source: \"ImmoScout24\",\n    name: \"3 Apartments Package Düsseldorf\",\n    location: \"Pempelfort\",\n    place: \"Düsseldorf\",\n    purchasePrice: 950000,\n    rentPerMonth: 5200,\n    livingSpace: 245,\n    numberOfRooms: 9,\n    constructionYear: 1998,\n    type: \"Multi-Unit\",\n    condition: \"Good\",\n    contact: {\n      name: \"Robert Schneider\",\n      email: \"r.schneider@duesseldorf-invest.de\",\n      phone: \"+49 211 77889900\"\n    },\n    link: \"https://www.immobilienscout24.de/expose/IS24-102\",\n    description: \"Excellent investment with 3 rented units\"\n  },\n  {\n    exposeid: \"IS24-103\",\n    source: \"ImmoScout24\",\n    name: \"Modern Studio Leipzig\",\n    location: \"Zentrum-Süd\",\n    place: \"Leipzig\",\n    purchasePrice: 135000,\n    rentPerMonth: 680,\n    livingSpace: 42,\n    numberOfRooms: 1,\n    constructionYear: 2019,\n    type: \"Studio\",\n    condition: \"New\",\n    contact: {\n      name: \"Maria Wagner\",\n      email: \"m.wagner@leipzig-wohnen.de\",\n      phone: \"+49 341 22334455\"\n    },\n    link: \"https://www.immobilienscout24.de/expose/IS24-103\",\n    description: \"Compact studio for students\"\n  }\n];\n\nreturn mockProperties.map(prop => ({ json: prop }));"
+      },
+      "id": "2bfdcb7c-a021-4871-9191-1a95de809e65",
+      "name": "ImmoScout Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -352,
+        -224
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Immometrica Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "ImmoScout Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Sources": {
+      "main": [
+        [
+          {
+            "node": "Normalize & Score Properties",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize & Score Properties": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Filter Qualified Properties",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Qualified Properties": {
+      "main": [
+        [
+          {
+            "node": "Send Email to Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Daily Report Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get All Listings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Listings": {
+      "main": [
+        [
+          {
+            "node": "Generate Report Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Report Stats": {
+      "main": [
+        [
+          {
+            "node": "Send Daily Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Immometrica Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ImmoScout Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "24a91a41-ba65-4b2e-8533-186ed4331c06",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "563081422b97a9613202fc9e330444d764a4b838aee8c810ae24b64e312e87c7"
+  },
+  "id": "NmZ6ccSzl6lyRBzR",
+  "tags": []
+}
